@@ -590,8 +590,26 @@ def lm_head_logits(hidden, lm_head_params):
     # Reuse primitive affine projection: logits = hidden @ W + b
     return linear_projection(hidden, W, b)
 
-# Step 25 - greedy_next_token (not yet solved)
-# TODO: implement
+# Step 25 - greedy_next_token
+import numpy as np
+
+def greedy_next_token(logits):
+    """Selects the next token ID by taking the argmax of the final logits row.
+    
+    Args:
+        logits: 1D array of shape (vocab_size,) or 2D array of shape (T, vocab_size).
+        
+    Returns:
+        The selected token ID as a plain Python int.
+    """
+    # If 2D (T, vocab_size), extract the last position logits (shape: vocab_size,)
+    if logits.ndim == 2:
+        last_row = logits[-1]
+    else:
+        last_row = logits
+        
+    # Take argmax across the vocabulary dimension and convert to Python int
+    return int(np.argmax(last_row))
 
 # Step 26 - run_prefill (not yet solved)
 # TODO: implement
