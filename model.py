@@ -1151,8 +1151,9 @@ def check_commitment_against_proof(recomputed_leaf, leaf_index, proof, root):
     
     return current_hash == root
 
-# Step 43 - check_token_matches_claim (not yet solved)
-# TODO: implement
+# Step 43 - check_token_matches_claim
+def check_token_matches_claim(recomputed_token, claimed_token):
+    return recomputed_token == claimed_token
 
 # Step 44 - run_spot_check_verification (not yet solved)
 # TODO: implement
