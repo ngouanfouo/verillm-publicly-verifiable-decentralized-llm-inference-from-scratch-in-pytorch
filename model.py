@@ -203,8 +203,27 @@ def project_qkv(x, attn_params):
     
     return (q, k, v)
 
-# Step 13 - append_kv_cache (not yet solved)
-# TODO: implement
+# Step 13 - append_kv_cache
+def append_kv_cache(kv_cache, new_k, new_v):
+    # TODO: extend the per-layer KV cache by appending new_k and new_v along the time axis.
+    
+    import numpy as np
+    
+    # Get current cached keys and values
+    cached_k = kv_cache['k']
+    cached_v = kv_cache['v']
+    
+    # If cache is None, just use the new tensors
+    if cached_k is None:
+        updated_k = new_k
+        updated_v = new_v
+    else:
+        # Append along the time axis (axis 0)
+        updated_k = np.concatenate([cached_k, new_k], axis=0)
+        updated_v = np.concatenate([cached_v, new_v], axis=0)
+    
+    # Return the updated cache
+    return {'k': updated_k, 'v': updated_v}
 
 # Step 14 - scaled_dot_product_attention_with_cache (not yet solved)
 # TODO: implement
