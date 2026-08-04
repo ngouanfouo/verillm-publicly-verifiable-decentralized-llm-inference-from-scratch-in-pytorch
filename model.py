@@ -420,8 +420,155 @@ def residual_add_and_norm(x, sublayer_output, ln_params, eps=1e-5):
     # 2. Apply layer normalization via the upstream primitive
     return layer_norm_apply(residual_sum, ln_params, eps=eps)
 
-# Step 23 - transformer_block (not yet solved)
-# TODO: implement
+# Step 23 - transformer_block
+import numpy as np
+
+def linear_projection(x, weight, bias=None):
+    """Affine map y = x @ weight + bias used throughout the transformer."""
+    result = x @ weight
+    if bias is not None:
+        result = result + bias
+    return result
+
+def compute_attention_scores(queries, keys):
+    """Return the (Tq, Tk) matrix of raw dot-product scores between queries and keys."""
+    return queries @ keys.T
+
+def scale_attention_scores(scores, d_head):
+    """Scale raw attention scores by 1/sqrt(d_head) for numerical stability."""
+    scale_factor = 1.0 / np.sqrt(d_head)
+    return scores * scale_factor
+
+def apply_causal_mask(scores, query_offset=0):
+    """Mask entries where key index > query_offset + query row index with -inf."""
+    Tq, Tk = scores.shape
+    query_positions = np.arange(query_offset, query_offset + Tq).reshape(-1, 1)
+    key_positions = np.arange(Tk).reshape(1, -1)
+    mask = key_positions > query_positions
+    scores = scores.copy()
+    scores[mask] = -np.inf
+    return scores
+
+def softmax_attention_weights(masked_scores):
+    """Convert masked attention scores to a probability distribution via softmax over the last axis."""
+    max_vals = np.max(masked_scores, axis=-1, keepdims=True)
+    max_vals = np.nan_to_num(max_vals, nan=0.0, neginf=0.0)
+    exp_scores = np.exp(masked_scores - max_vals)
+    sum_exp = np.sum(exp_scores, axis=-1, keepdims=True)
+    sum_exp = np.where(sum_exp == 0, 1.0, sum_exp)
+    return exp_scores / sum_exp
+
+def weighted_value_sum(attn_weights, values):
+    """Combine attention weights (Tq, Tk) with values (Tk, d_head) into context (Tq, d_head)."""
+    return attn_weights @ values
+
+def scaled_dot_product_attention_with_cache(queries, kv_cache, query_offset=0):
+    """Causal scaled dot-product attention of queries against a KV cache."""
+    keys = kv_cache['k']
+    values = kv_cache['v']
+    d_head = queries.shape[1]
+    
+    scores = compute_attention_scores(queries, keys)
+    scaled_scores = scale_attention_scores(scores, d_head)
+    masked_scores = apply_causal_mask(scaled_scores, query_offset)
+    attn_weights = softmax_attention_weights(masked_scores)
+    output = weighted_value_sum(attn_weights, values)
+    
+    return output
+
+def _get_param(param_dict, keys, default=None):
+    """Safely retrieves a parameter matrix without triggering array truth-value checks."""
+    for k in keys:
+        if k in param_dict and param_dict[k] is not None:
+            return param_dict[k]
+    return default
+
+def project_qkv(x, attn_params):
+    """Project x into query, key, and value vectors using attn_params."""
+    d_model = x.shape[1]
+    
+    Wq = _get_param(attn_params, ['Wq', 'W_q', 'query_weight'], np.zeros((d_model, d_model)))
+    Wk = _get_param(attn_params, ['Wk', 'W_k', 'key_weight'], np.zeros((d_model, d_model)))
+    Wv = _get_param(attn_params, ['Wv', 'W_v', 'value_weight'], np.zeros((d_model, d_model)))
+    
+    bq = _get_param(attn_params, ['bq', 'b_q'])
+    bk = _get_param(attn_params, ['bk', 'b_k'])
+    bv = _get_param(attn_params, ['bv', 'b_v'])
+    
+    q = linear_projection(x, Wq, bq)
+    k = linear_projection(x, Wk, bk)
+    v = linear_projection(x, Wv, bv)
+    
+    return q, k, v
+
+def append_kv_cache(kv_cache, new_k, new_v):
+    """Extend the per-layer KV cache by appending new_k and new_v along the time axis."""
+    if kv_cache['k'] is None or kv_cache['k'].size == 0:
+        updated_k = new_k
+        updated_v = new_v
+    else:
+        updated_k = np.concatenate([kv_cache['k'], new_k], axis=0)
+        updated_v = np.concatenate([kv_cache['v'], new_v], axis=0)
+    
+    return {'k': updated_k, 'v': updated_v}
+
+def apply_output_projection(context, attn_params):
+    """Project the attention context back to model dimension."""
+    d_model = context.shape[1]
+    Wo = _get_param(attn_params, ['Wo', 'W_o', 'c_proj'], np.eye(d_model))
+    bo = _get_param(attn_params, ['bo', 'b_o'])
+    return linear_projection(context, Wo, bo)
+
+def single_head_causal_self_attention(x, attn_params, kv_cache, query_offset=0):
+    """Computes single-head causal self-attention with KV cache update."""
+    q, k_new, v_new = project_qkv(x, attn_params)
+    updated_kv_cache = append_kv_cache(kv_cache, k_new, v_new)
+    attn_context = scaled_dot_product_attention_with_cache(q, updated_kv_cache, query_offset)
+    attn_out = apply_output_projection(attn_context, attn_params)
+    return attn_out, updated_kv_cache
+
+def layer_norm(x, ln_params):
+    """Apply layer normalization with learned scale and bias."""
+    gamma = ln_params.get('gamma', np.ones(x.shape[-1]))
+    beta = ln_params.get('beta', np.zeros(x.shape[-1]))
+    eps = ln_params.get('eps', 1e-6)
+    
+    mean = np.mean(x, axis=-1, keepdims=True)
+    var = np.var(x, axis=-1, keepdims=True)
+    x_norm = (x - mean) / np.sqrt(var + eps)
+    
+    return x_norm * gamma + beta
+
+def residual_add_and_norm(x, sublayer_out, ln_params):
+    """Apply residual connection and layer normalization."""
+    return layer_norm(x + sublayer_out, ln_params)
+
+def position_wise_feed_forward(x, ffn_params):
+    """Apply position-wise feed-forward network."""
+    d_model = x.shape[-1]
+    W1 = _get_param(ffn_params, ['W1', 'W_1'], np.zeros((d_model, d_model)))
+    b1 = _get_param(ffn_params, ['b1', 'b_1'])
+    W2 = _get_param(ffn_params, ['W2', 'W_2'], np.zeros((d_model, d_model)))
+    b2 = _get_param(ffn_params, ['b2', 'b_2'])
+    
+    hidden = linear_projection(x, W1, b1)
+    hidden = np.maximum(0, hidden)  # ReLU
+    output = linear_projection(hidden, W2, b2)
+    return output
+
+def transformer_block(x, block_params, kv_cache, query_offset=0):
+    """Runs one full Transformer block: Attention + FFN, each wrapped in residual add-and-norm."""
+    attn_out, updated_kv_cache = single_head_causal_self_attention(
+        x, 
+        block_params['attn'], 
+        kv_cache, 
+        query_offset=query_offset
+    )
+    x_attn = residual_add_and_norm(x, attn_out, block_params['ln1'])
+    ffn_out = position_wise_feed_forward(x_attn, block_params['ffn'])
+    out = residual_add_and_norm(x_attn, ffn_out, block_params['ln2'])
+    
+    return out, updated_kv_cache
 
 # Step 24 - lm_head_logits (not yet solved)
 # TODO: implement
