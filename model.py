@@ -877,8 +877,12 @@ def commit_decode_step(step_state):
 
     return hasher.digest()
 
-# Step 31 - hash_pair (not yet solved)
-# TODO: implement
+# Step 31 - hash_pair
+import hashlib
+
+def hash_pair(left_digest, right_digest):
+    """Hash two child digests into a single parent digest."""
+    return hashlib.sha256(left_digest + right_digest).digest()
 
 # Step 32 - build_merkle_level (not yet solved)
 # TODO: implement
