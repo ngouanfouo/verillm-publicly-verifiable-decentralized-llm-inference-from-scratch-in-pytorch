@@ -901,8 +901,19 @@ def build_merkle_level(nodes):
 
     return parent_level
 
-# Step 33 - build_merkle_tree (not yet solved)
-# TODO: implement
+# Step 33 - build_merkle_tree
+def build_merkle_tree(leaves):
+    """Build the full Merkle tree as a list of levels from the given leaf digests."""
+    if not leaves:
+        return [[]]
+
+    tree = [leaves]
+
+    while len(tree[-1]) > 1:
+        next_level = build_merkle_level(tree[-1])
+        tree.append(next_level)
+
+    return tree
 
 # Step 34 - merkle_root (not yet solved)
 # TODO: implement
