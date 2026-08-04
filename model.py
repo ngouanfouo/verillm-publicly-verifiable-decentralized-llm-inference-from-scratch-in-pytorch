@@ -144,8 +144,30 @@ def apply_causal_mask(scores, query_offset=0):
     
     return scores
 
-# Step 10 - softmax_attention_weights (not yet solved)
-# TODO: implement
+# Step 10 - softmax_attention_weights
+import numpy as np
+
+def softmax_attention_weights(masked_scores):
+    """Convert masked attention scores to a probability distribution via softmax over the last axis."""
+    # TODO: apply a numerically stable softmax along the last axis of masked_scores
+    
+    # Use the stable softmax trick: subtract max before exp
+    # For rows that are all -inf, max will be -inf, so we need to handle this
+    max_vals = np.max(masked_scores, axis=-1, keepdims=True)
+    
+    # If a row is all -inf, max_val will be -inf
+    # We can set max_vals to 0 for these rows to avoid -inf - (-inf) = nan
+    max_vals = np.nan_to_num(max_vals, nan=0.0, neginf=0.0)
+    
+    exp_scores = np.exp(masked_scores - max_vals)
+    sum_exp = np.sum(exp_scores, axis=-1, keepdims=True)
+    
+    # Avoid division by zero: if sum_exp is 0, set to 1
+    sum_exp = np.where(sum_exp == 0, 1.0, sum_exp)
+    
+    weights = exp_scores / sum_exp
+    
+    return weights
 
 # Step 11 - weighted_value_sum (not yet solved)
 # TODO: implement
