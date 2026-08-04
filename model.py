@@ -1155,8 +1155,44 @@ def check_commitment_against_proof(recomputed_leaf, leaf_index, proof, root):
 def check_token_matches_claim(recomputed_token, claimed_token):
     return recomputed_token == claimed_token
 
-# Step 44 - run_spot_check_verification (not yet solved)
-# TODO: implement
+# Step 44 - run_spot_check_verification
+def run_spot_check_verification(transcript, model_params, seed, k):
+    """Run end-to-end spot-check verification of a prover transcript.
+
+    Returns a dict with keys 'accept', 'audited_positions', 'per_audit'.
+    """
+    num_steps = len(transcript['steps']) if isinstance(transcript, dict) and 'steps' in transcript else len(transcript)
+    audited_positions = sample_audit_positions(num_steps, k, seed)
+    audited_positions.sort()
+
+    per_audit = []
+    all_ok = True
+
+    for pos in audited_positions:
+        step = transcript['steps'][pos] if isinstance(transcript, dict) and 'steps' in transcript else transcript[pos]
+        
+        recomputed_leaf, recomputed_token = reexecute_decode_step(transcript, pos, model_params)
+        
+        root = transcript['merkle_root'] if isinstance(transcript, dict) and 'merkle_root' in transcript else transcript.merkle_root
+        proof = step['proof'] if isinstance(step, dict) and 'proof' in step else step.proof
+        claimed_token = step['token'] if isinstance(step, dict) and 'token' in step else step.token
+
+        commitment_ok = check_commitment_against_proof(recomputed_leaf, pos, proof, root)
+        token_ok = check_token_matches_claim(recomputed_token, claimed_token)
+
+        per_audit.append({
+            'commitment_ok': commitment_ok,
+            'token_ok': token_ok
+        })
+
+        if not (commitment_ok and token_ok):
+            all_ok = False
+
+    return {
+        'accept': all_ok,
+        'audited_positions': audited_positions,
+        'per_audit': per_audit
+    }
 
 # Step 45 - tamper_transcript_flip_token (not yet solved)
 # TODO: implement
