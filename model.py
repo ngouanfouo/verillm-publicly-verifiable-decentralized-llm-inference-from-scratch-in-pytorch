@@ -1229,8 +1229,16 @@ def detection_probability(num_steps, num_corrupted, k):
 def verifier_cost_fraction(num_steps, k):
     return float(k) / float(num_steps)
 
-# Step 48 - show_tampered_transcript_rejected (not yet solved)
-# TODO: implement
+# Step 48 - show_tampered_transcript_rejected
+def show_tampered_transcript_rejected(transcript, model_params, position, new_token, seed, k):
+    tampered_transcript = tamper_transcript_flip_token(transcript, position, new_token)
+    result = run_spot_check_verification(tampered_transcript, model_params, seed, k)
+    
+    return {
+        'tampered_transcript': tampered_transcript,
+        'result': result,
+        'rejected': not result['accept']
+    }
 
 # Step 49 - sample_verifier_committee (not yet solved)
 # TODO: implement
