@@ -1600,6 +1600,32 @@ def run_malicious_round(model_params, prompt_ids, num_steps, verifier_ids, worke
         'tampered_transcript': tampered_transcript
     }
 
-# Step 57 - report_end_to_end_verification_cost (not yet solved)
-# TODO: implement
+# Step 57 - report_end_to_end_verification_cost
+def report_end_to_end_verification_cost(num_steps, committee_size, k):
+    # TODO: return a dict with per_verifier_fraction, committee_fraction, full_reexec_fraction.
+    
+    # If there are no steps, all fractions are 0
+    if num_steps == 0:
+        return {
+            'per_verifier_fraction': 0.0,
+            'committee_fraction': 0.0,
+            'full_reexec_fraction': 1.0
+        }
+    
+    # Calculate per-verifier audit fraction: k / num_steps
+    per_verifier_fraction = k / num_steps
+    
+    # Calculate total committee fraction: per_verifier_fraction * committee_size
+    # Each verifier audits k steps, so total audits = committee_size * k
+    # Compared to full re-execution which audits all num_steps
+    committee_fraction = (committee_size * k) / num_steps
+    
+    # Full re-execution baseline is always 1.0 (100% of steps)
+    full_reexec_fraction = 1.0
+    
+    return {
+        'per_verifier_fraction': per_verifier_fraction,
+        'committee_fraction': committee_fraction,
+        'full_reexec_fraction': full_reexec_fraction
+    }
 
