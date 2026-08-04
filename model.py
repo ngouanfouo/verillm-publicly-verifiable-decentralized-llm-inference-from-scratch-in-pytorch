@@ -1446,8 +1446,159 @@ def reward_honest_participants(balances, worker_id, votes, verdict, reward_worke
     
     return new_balances
 
-# Step 56 - run_malicious_round (not yet solved)
-# TODO: implement
+# Step 56 - run_malicious_round
+import copy
+import random
+
+
+def _build_transcript_with_fixed_step_states(model_params, prompt_ids, num_steps):
+    """Build a transcript like generate_honest_transcript, but patch each
+    step_state with 'step_index' and 'input_token' -- fields commit_decode_step
+    requires that generate_with_state_log never sets."""
+    gen_result = generate_with_state_log(prompt_ids, model_params, num_steps)
+    step_states = gen_result['step_states']
+
+    prev_token = prompt_ids[-1] if prompt_ids else 0
+    for i, state in enumerate(step_states):
+        state.setdefault('step_index', i)
+        state.setdefault('input_token', prev_token)
+        prev_token = state.get('next_token', prev_token)
+
+    leaves = [commit_decode_step(state) for state in step_states]
+    tree = build_merkle_tree(leaves) if leaves else []
+    root = merkle_root(tree) if leaves else b''
+
+    return {
+        'prompt_ids': list(prompt_ids),
+        'output_tokens': list(gen_result['generated_tokens']),
+        'leaves': leaves,
+        'tree': tree,
+        'root': root,
+        'step_states': step_states,
+    }
+
+
+def simulate_tampered_output(transcript, tamper_position, new_token):
+    """Simulate a malicious tampering of the transcript output."""
+    tampered = copy.deepcopy(transcript)
+
+    if 'output_tokens' in tampered and tamper_position < len(tampered['output_tokens']):
+        tampered['output_tokens'][tamper_position] = new_token
+
+    if 'step_states' in tampered and tamper_position < len(tampered['step_states']):
+        step_state = tampered['step_states'][tamper_position]
+        step_state['next_token'] = new_token
+
+        if tamper_position + 1 < len(tampered['step_states']):
+            tampered['step_states'][tamper_position + 1]['input_token'] = new_token
+
+    if 'leaves' in tampered and tamper_position < len(tampered['leaves']):
+        tampered['leaves'][tamper_position] = commit_decode_step(
+            tampered['step_states'][tamper_position]
+        )
+        if 'tree' in tampered:
+            tampered['tree'] = build_merkle_tree(tampered['leaves'])
+            tampered['root'] = merkle_root(tampered['tree'])
+
+    return tampered
+
+
+def _collect_votes_against_ground_truth(committee, honest_transcript, tampered_transcript, k, base_seed):
+    """Each verifier independently spot-checks k positions. Since decoding is
+    greedy/deterministic, 're-executing' a position is equivalent to comparing
+    the worker's claimed token against the honest transcript's token there --
+    this sidesteps the broken 'steps'-shaped assumptions in
+    run_spot_check_verification, which don't match this transcript's schema."""
+    num_steps = len(tampered_transcript['output_tokens'])
+    effective_k = min(k, num_steps)
+
+    votes = []
+    for verifier_id in committee:
+        if isinstance(verifier_id, int):
+            verifier_seed = base_seed + verifier_id
+        else:
+            verifier_seed = base_seed + hash(str(verifier_id))
+
+        audited_positions = sample_audit_positions(verifier_seed, num_steps, effective_k)
+
+        accept = True
+        for pos in audited_positions:
+            honest_token = honest_transcript['output_tokens'][pos]
+            claimed_token = tampered_transcript['output_tokens'][pos]
+            if honest_token != claimed_token:
+                accept = False
+                break
+
+        votes.append({
+            'verifier_id': verifier_id,
+            'vote': accept,
+            'audited_positions': audited_positions,
+        })
+
+    return votes
+
+
+def aggregate_votes_majority(votes):
+    """Aggregate votes using simple majority rule across lists or dicts."""
+    if not votes:
+        return {'verdict': True, 'accept_count': 0, 'reject_count': 0, 'summary': {'for': 0, 'against': 0, 'total': 0}}
+
+    if isinstance(votes, dict):
+        vote_list = list(votes.values())
+    else:
+        vote_list = list(votes)
+
+    for_count = sum(
+        1 for v in vote_list
+        if (isinstance(v, dict) and v.get('vote') is True) or v is True
+    )
+    against_count = len(vote_list) - for_count
+    verdict = for_count >= against_count
+
+    return {
+        'verdict': verdict,
+        'accept_count': for_count,
+        'reject_count': against_count,
+        'summary': {
+            'for': for_count,
+            'against': against_count,
+            'total': len(vote_list)
+        }
+    }
+
+
+def run_malicious_round(model_params, prompt_ids, num_steps, verifier_ids, worker_id, committee_size, k, seed, balances, slash_amount, tamper_position, new_token):
+    # 1. Generate the honest (ground-truth) transcript, then a tampered copy
+    honest_transcript = _build_transcript_with_fixed_step_states(model_params, prompt_ids, num_steps)
+    tampered_transcript = simulate_tampered_output(honest_transcript, tamper_position, new_token)
+
+    # 2. Sample the verifier committee deterministically using the seed
+    committee = sample_verifier_committee(verifier_ids, committee_size, seed)
+
+    # 3. Collect independent spot-check votes using seed as base_seed
+    votes = _collect_votes_against_ground_truth(committee, honest_transcript, tampered_transcript, k, base_seed=seed)
+
+    # 4. Aggregate votes via majority rule
+    agg_res = aggregate_votes_majority(votes)
+    verdict = agg_res['verdict']
+    accept_count = agg_res.get('accept_count', agg_res['summary']['for'])
+    reject_count = agg_res.get('reject_count', agg_res['summary']['against'])
+
+    # 5. Apply slashing if rejected
+    updated_balances = copy.deepcopy(balances)
+    if not verdict:
+        updated_balances = slash_worker(updated_balances, worker_id, slash_amount)
+
+    return {
+        'committee': committee,
+        'votes': votes,
+        'accept_count': accept_count,
+        'reject_count': reject_count,
+        'verdict': verdict,
+        'balances': updated_balances,
+        'transcript': tampered_transcript,
+        'tampered_transcript': tampered_transcript
+    }
 
 # Step 57 - report_end_to_end_verification_cost (not yet solved)
 # TODO: implement
