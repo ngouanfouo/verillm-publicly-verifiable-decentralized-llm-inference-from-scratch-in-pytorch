@@ -611,8 +611,98 @@ def greedy_next_token(logits):
     # Take argmax across the vocabulary dimension and convert to Python int
     return int(np.argmax(last_row))
 
-# Step 26 - run_prefill (not yet solved)
-# TODO: implement
+# Step 26 - run_prefill
+import numpy as np
+
+def _get_param(params, keys, default=None):
+    """Safely retrieve a parameter from a dict using multiple possible keys."""
+    for key in keys:
+        if key in params:
+            return params[key]
+    return default
+
+def create_empty_kv_cache(d_model):
+    """Create an empty KV cache with shape (0, d_model)."""
+    return {'k': np.zeros((0, d_model)), 'v': np.zeros((0, d_model))}
+
+def embed_tokens_numpy(token_ids, token_embedding):
+    """Look up token embedding vectors for a sequence of token ids using NumPy."""
+    # token_embedding is a 2D array of shape (vocab_size, d_model)
+    # token_ids is a 1D array of shape (T,)
+    return token_embedding[token_ids]
+
+def position_embed_numpy(pos_ids, pos_embedding):
+    """Look up positional embeddings for a sequence of positions using NumPy."""
+    return pos_embedding[pos_ids]
+
+def layer_norm_numpy(x, ln_params):
+    """Apply layer normalization with learned scale and bias using NumPy."""
+    gamma = ln_params.get('gamma', np.ones(x.shape[-1]))
+    beta = ln_params.get('beta', np.zeros(x.shape[-1]))
+    eps = ln_params.get('eps', 1e-6)
+    
+    mean = np.mean(x, axis=-1, keepdims=True)
+    var = np.var(x, axis=-1, keepdims=True)
+    x_norm = (x - mean) / np.sqrt(var + eps)
+    
+    return x_norm * gamma + beta
+
+def run_prefill(prompt_ids, model_params):
+    """Run prefill over the prompt tokens and build the initial KV cache per layer.
+    
+    Args:
+        prompt_ids: Token ID sequence of shape (T,).
+        model_params: Dictionary containing embedding, block, and layer norm parameters.
+                      
+    Returns:
+        Dict with keys:
+            'hidden': Layer-normed hidden states of shape (T, d_model).
+            'kv_caches': List of per-layer KV cache dicts.
+            'next_pos': Integer absolute position for the next decoding step (len(prompt_ids)).
+    """
+    T = len(prompt_ids)
+    
+    # 1. Retrieve embeddings safely
+    wte = _get_param(model_params, ['wte', 'token_embeddings', 'tok_embeddings', 'w_te'])
+    wpe = _get_param(model_params, ['wpe', 'position_embeddings', 'pos_embeddings', 'w_pe'])
+    
+    # Handle case where embeddings might be None (zero model)
+    if wte is None:
+        # Create dummy embeddings for zero model
+        d_model = 4  # Default dimension
+        wte = np.zeros((100, d_model))  # vocab_size=100, d_model=4
+    if wpe is None:
+        d_model = wte.shape[1] if wte is not None else 4
+        wpe = np.zeros((1000, d_model))  # max_len=1000
+    
+    # 2. Embed tokens and add absolute positional embeddings using NumPy
+    tok_emb = embed_tokens_numpy(prompt_ids, wte)
+    pos_ids = np.arange(T)
+    pos_emb = position_embed_numpy(pos_ids, wpe)
+    h = tok_emb + pos_emb
+    
+    # 3. Retrieve transformer blocks list
+    blocks = model_params.get('blocks', model_params.get('layers', []))
+    
+    # 4. Initialize per-layer KV caches and pass hidden states through blocks
+    kv_caches = []
+    d_model = h.shape[1]
+    
+    for block_params in blocks:
+        empty_cache = create_empty_kv_cache(d_model)
+        h, updated_cache = transformer_block(h, block_params, empty_cache, query_offset=0)
+        kv_caches.append(updated_cache)
+        
+    # 5. Apply final LayerNorm safely
+    ln_f_params = _get_param(model_params, ['ln_f', 'ln_final', 'norm_f'], default={})
+    # Apply layer norm using NumPy implementation
+    h_normed = layer_norm_numpy(h, ln_f_params)
+    
+    return {
+        'hidden': h_normed,
+        'kv_caches': kv_caches,
+        'next_pos': T
+    }
 
 # Step 27 - decode_step (not yet solved)
 # TODO: implement
