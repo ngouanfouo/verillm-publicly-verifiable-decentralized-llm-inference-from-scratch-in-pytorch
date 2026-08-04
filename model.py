@@ -121,8 +121,28 @@ def scale_attention_scores(scores, d_head):
     scaled_scores=scores*scale_factor
     return scaled_scores
 
-# Step 9 - apply_causal_mask (not yet solved)
-# TODO: implement
+# Step 9 - apply_causal_mask
+def apply_causal_mask(scores, query_offset=0):
+    # TODO: mask entries where key index > query_offset + query row index with -inf.
+    
+    import numpy as np
+    
+    Tq, Tk = scores.shape
+    
+    # Create a boolean mask for positions that violate causality
+    # query_positions: (Tq, 1) with values [query_offset, query_offset+1, ...]
+    query_positions = np.arange(query_offset, query_offset + Tq).reshape(-1, 1)
+    # key_positions: (1, Tk) with values [0, 1, 2, ...]
+    key_positions = np.arange(Tk).reshape(1, -1)
+    
+    # Mask is True where key_position > query_position + i
+    mask = key_positions > query_positions
+    
+    # Apply the mask: set masked positions to -inf
+    scores = scores.copy()  # Avoid modifying the original
+    scores[mask] = -np.inf
+    
+    return scores
 
 # Step 10 - softmax_attention_weights (not yet solved)
 # TODO: implement
