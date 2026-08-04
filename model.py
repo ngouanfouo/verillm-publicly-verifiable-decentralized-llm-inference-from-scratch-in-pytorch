@@ -182,8 +182,26 @@ def weighted_value_sum(attn_weights, values):
     
     return context
 
-# Step 12 - project_qkv (not yet solved)
-# TODO: implement
+# Step 12 - project_qkv
+import numpy as np
+
+def project_qkv(x, attn_params):
+    # TODO: project x into query, key, value tensors using attn_params
+    
+    # Extract the weight and bias matrices from attn_params
+    Wq = attn_params['Wq']
+    bq = attn_params['bq']
+    Wk = attn_params['Wk']
+    bk = attn_params['bk']
+    Wv = attn_params['Wv']
+    bv = attn_params['bv']
+    
+    # Project x to query, key, and value using linear_projection
+    q = linear_projection(x, Wq, bq)
+    k = linear_projection(x, Wk, bk)
+    v = linear_projection(x, Wv, bv)
+    
+    return (q, k, v)
 
 # Step 13 - append_kv_cache (not yet solved)
 # TODO: implement
