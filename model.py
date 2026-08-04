@@ -851,8 +851,31 @@ def hash_tensor(tensor: np.ndarray) -> bytes:
     
     return hasher.digest()
 
-# Step 30 - commit_decode_step (not yet solved)
-# TODO: implement
+# Step 30 - commit_decode_step
+import hashlib
+import numpy as np
+
+def commit_decode_step(step_state):
+    """Build a 32-byte Merkle leaf digest committing to every field of one decode step."""
+    hasher = hashlib.sha256()
+
+    # 1. Scalar metadata fields
+    for key in ['step_index', 'input_token', 'next_token', 'next_pos']:
+        val = np.array(step_state[key], dtype=np.int64)
+        hasher.update(hash_tensor(val))
+
+    # 2. Logits tensor
+    logits = np.asarray(step_state['logits'])
+    hasher.update(hash_tensor(logits))
+
+    # 3. Key-Value Caches
+    for layer_cache in step_state['kv_caches']:
+        k_tensor = np.asarray(layer_cache['k'])
+        v_tensor = np.asarray(layer_cache['v'])
+        hasher.update(hash_tensor(k_tensor))
+        hasher.update(hash_tensor(v_tensor))
+
+    return hasher.digest()
 
 # Step 31 - hash_pair (not yet solved)
 # TODO: implement
