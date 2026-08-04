@@ -269,8 +269,45 @@ def apply_output_projection(context, attn_params):
     
     return output
 
-# Step 16 - single_head_causal_self_attention (not yet solved)
-# TODO: implement
+# Step 16 - single_head_causal_self_attention
+import numpy as np
+
+def project_qkv(x, attn_params):
+    """Project input x into query, key, and value matrices using attn_params."""
+    Wq = attn_params['Wq']
+    Wk = attn_params['Wk']
+    Wv = attn_params['Wv']
+    
+    # Safely retrieve bias terms (defaults to None if missing)
+    bq = attn_params.get('bq', None)
+    bk = attn_params.get('bk', None)
+    bv = attn_params.get('bv', None)
+    
+    q = linear_projection(x, Wq, bq)
+    k = linear_projection(x, Wk, bk)
+    v = linear_projection(x, Wv, bv)
+    
+    return q, k, v
+
+
+def single_head_causal_self_attention(x, attn_params, kv_cache, query_offset=0):
+    """Single-head causal self-attention with KV-cache update.
+
+    Returns (out, kv_cache) where out has shape (T, d_model).
+    """
+    # 1. Linear projection to Q, K, V (safely handling missing biases)
+    q, k, v = project_qkv(x, attn_params)
+    
+    # 2. Append newly computed keys and values to the existing KV cache
+    updated_cache = append_kv_cache(kv_cache, k, v)
+    
+    # 3. Scaled dot-product attention against the full cached context
+    context = scaled_dot_product_attention_with_cache(q, updated_cache, query_offset=query_offset)
+    
+    # 4. Project context vector back to d_model dimension using Wo and bo
+    out = apply_output_projection(context, attn_params)
+    
+    return out, updated_cache
 
 # Step 17 - ffn_first_layer_gelu (not yet solved)
 # TODO: implement
