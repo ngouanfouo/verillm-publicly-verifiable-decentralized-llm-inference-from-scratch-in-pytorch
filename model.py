@@ -1247,8 +1247,36 @@ def sample_verifier_committee(verifier_ids, committee_size, seed):
     rng = random.Random(seed)
     return rng.sample(verifier_ids, committee_size)
 
-# Step 50 - collect_verifier_votes (not yet solved)
-# TODO: implement
+# Step 50 - collect_verifier_votes
+def collect_verifier_votes(committee, transcript, model_params, k, base_seed):
+    votes = []
+    
+    # Determine number of decode steps in transcript to prevent out-of-bounds auditing
+    num_steps = 0
+    if isinstance(transcript, dict):
+        if 'leaves' in transcript and transcript['leaves'] is not None:
+            num_steps = len(transcript['leaves'])
+        elif 'output_tokens' in transcript and transcript['output_tokens'] is not None:
+            num_steps = len(transcript['output_tokens'])
+            
+    effective_k = min(k, num_steps) if num_steps >= 0 else k
+    
+    for verifier_id in committee:
+        # Derive deterministic seed per verifier
+        if isinstance(verifier_id, int):
+            verifier_seed = base_seed + verifier_id
+        else:
+            verifier_seed = base_seed + hash(str(verifier_id))
+        
+        result = run_spot_check_verification(transcript, model_params, verifier_seed, effective_k)
+        
+        votes.append({
+            'verifier_id': verifier_id,
+            'vote': result['accept'],
+            'result': result
+        })
+        
+    return votes
 
 # Step 51 - aggregate_votes_majority (not yet solved)
 # TODO: implement
