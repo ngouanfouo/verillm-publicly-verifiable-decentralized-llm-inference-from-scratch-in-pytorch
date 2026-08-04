@@ -37,8 +37,18 @@ def encode_string(text, vocab):
     
     return encoded
 
-# Step 3 - decode_ids (not yet solved)
-# TODO: implement
+# Step 3 - decode_ids
+def decode_ids(ids, vocab):
+    # TODO: decode a sequence of token ids back into the original string using vocab['itos'].
+    
+    itos = vocab['itos']
+    
+    # Build the string character by character
+    result = ''
+    for id in ids:
+        result += itos[id]
+    
+    return result
 
 # Step 4 - embed_tokens (not yet solved)
 # TODO: implement
