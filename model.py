@@ -334,8 +334,23 @@ def ffn_first_layer_gelu(x, ffn_params):
     # 2. Apply GELU activation elementwise
     return gelu(h1)
 
-# Step 18 - ffn_second_layer (not yet solved)
-# TODO: implement
+# Step 18 - ffn_second_layer
+import numpy as np
+
+def ffn_second_layer(h, ffn_params):
+    """Applies the second linear layer of the FFN, mapping (T, d_ff) back to (T, d_model).
+    
+    Args:
+        h: Hidden activations of shape (T, d_ff).
+        ffn_params: Dictionary containing weight 'W2' (d_ff, d_model) and optional bias 'b2' (d_model,).
+        
+    Returns:
+        Output array of shape (T, d_model).
+    """
+    W2 = ffn_params['W2']
+    b2 = ffn_params.get('b2', None)
+    
+    return linear_projection(h, W2, b2)
 
 # Step 19 - position_wise_feed_forward (not yet solved)
 # TODO: implement
