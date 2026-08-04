@@ -352,8 +352,26 @@ def ffn_second_layer(h, ffn_params):
     
     return linear_projection(h, W2, b2)
 
-# Step 19 - position_wise_feed_forward (not yet solved)
-# TODO: implement
+# Step 19 - position_wise_feed_forward
+import numpy as np
+
+def position_wise_feed_forward(x, ffn_params):
+    """Position-wise Feed-Forward Network composed of two linear layers with GELU activation.
+    
+    Args:
+        x: Input array of shape (T, d_model).
+        ffn_params: Dictionary containing 'W1', 'b1', 'W2', 'b2'.
+        
+    Returns:
+        Output array of shape (T, d_model).
+    """
+    # 1. Project to inner dimension d_ff and apply GELU activation
+    h = ffn_first_layer_gelu(x, ffn_params)
+    
+    # 2. Project back down to d_model
+    out = ffn_second_layer(h, ffn_params)
+    
+    return out
 
 # Step 20 - compute_mean_variance (not yet solved)
 # TODO: implement
