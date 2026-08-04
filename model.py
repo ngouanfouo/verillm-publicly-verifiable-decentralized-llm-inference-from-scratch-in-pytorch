@@ -22,8 +22,20 @@ def build_char_vocab(corpus):
     # Return as a dictionary with both fields
     return {'stoi': stoi, 'itos': itos}
 
-# Step 2 - encode_string (not yet solved)
-# TODO: implement
+# Step 2 - encode_string
+def encode_string(text, vocab):
+    # TODO: convert text into a list of integer token ids using vocab['stoi'].
+    
+    stoi = vocab['stoi']
+    
+    # Convert each character to its id
+    # If a character is not in vocab, you could handle it with a default
+    # But for now, assume all characters are in vocab
+    encoded = []
+    for char in text:
+        encoded.append(stoi[char])
+    
+    return encoded
 
 # Step 3 - decode_ids (not yet solved)
 # TODO: implement
