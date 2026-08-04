@@ -970,8 +970,25 @@ def verify_merkle_inclusion_proof(leaf, leaf_index, proof, root):
 
     return current_digest == root
 
-# Step 37 - run_prover (not yet solved)
-# TODO: implement
+# Step 37 - run_prover
+def run_prover(model_params, prompt_ids, num_steps):
+    """Generate num_steps tokens greedily and produce a Merkle leaf for every decode step."""
+    # Call generate_with_state_log with correct parameter order
+    result = generate_with_state_log(prompt_ids, model_params, num_steps)
+    
+    output_tokens = result['generated_tokens']
+    step_states = result['step_states']
+    
+    leaves = []
+    for state in step_states:
+        # commit_decode_step should return a merkle leaf for each step
+        leaves.append(commit_decode_step(state))
+    
+    return {
+        'output_tokens': output_tokens,
+        'step_states': step_states,
+        'leaves': leaves,
+    }
 
 # Step 38 - assemble_public_transcript (not yet solved)
 # TODO: implement
