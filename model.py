@@ -1204,8 +1204,26 @@ def tamper_transcript_flip_token(transcript, position, new_token):
     tampered['output_tokens'][position] = new_token
     return tampered
 
-# Step 46 - detection_probability (not yet solved)
-# TODO: implement
+# Step 46 - detection_probability
+import math
+
+def detection_probability(num_steps, num_corrupted, k):
+    if num_corrupted == 0 or k == 0:
+        return 0.0
+    
+    if num_corrupted >= num_steps:
+        return 1.0
+    
+    num_clean = num_steps - num_corrupted
+    
+    # If k exceeds or equals total steps, or k exceeds available clean steps, detection is guaranteed
+    if k >= num_steps or k > num_clean:
+        return 1.0
+    
+    # Probability of drawing k steps with ZERO corrupted steps: C(num_clean, k) / C(num_steps, k)
+    prob_all_clean = math.comb(num_clean, k) / math.comb(num_steps, k)
+    
+    return 1.0 - prob_all_clean
 
 # Step 47 - verifier_cost_fraction (not yet solved)
 # TODO: implement
