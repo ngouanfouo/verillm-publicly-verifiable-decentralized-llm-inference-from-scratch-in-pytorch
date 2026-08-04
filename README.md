@@ -2,6 +2,25 @@
 
 Build a minimal GPT-style transformer with a KV cache from scratch, then wrap its inference in a Merkle-commitment and spot-check protocol that lets untrusted workers serve LLM outputs verifiably. Ends with a decentralized committee simulation with rewards and slashing, quantifying detection probability and verifier cost versus re-execution.
 
+## Problem Statement
+
+Centralized Large Language Model (LLM) inference creates a significant trust problem. When users query an LLM through a company's API, they must trust a centralized third party to:
+
+1. **Run the correct model** (not a smaller, cheaper version)
+2. **Perform inference correctly** (without shortcuts or approximations)
+3. **Provide truthful outputs** (without manipulation or censorship)
+4. **Protect user privacy** (when handling sensitive data)
+
+This "black box" nature of centralized LLM inference makes it unsuitable for high-stakes applications in healthcare, finance, legal domains, and collaborative environments where multiple parties need to share sensitive data without revealing it. Users cannot independently verify that the model was run correctly, that the output wasn't tampered with, or that their data was handled properly.
+
+**VeriLLM solves this by providing a publicly verifiable decentralized inference protocol** that:
+- Allows untrusted workers to serve LLM outputs while providing cryptographic guarantees of correctness
+- Uses Merkle tree commitments to create an auditable transcript of the entire inference process
+- Employs a decentralized committee of verifiers who spot-check the computation
+- Implements economic incentives through rewards and slashing to ensure honest behavior
+
+By making LLM inference transparent and verifiable, VeriLLM transforms AI from a black-box service into a trustless, auditable utility that can be deployed in sensitive and collaborative environments.
+
 ## How to run
 
 ```bash
@@ -69,5 +88,5 @@ python scaffold.py
 - [x] **57.** report_end_to_end_verification_cost
 
 ---
-
+## Author: Tiayo Durel
 Built on Deep-ML.
