@@ -1240,8 +1240,12 @@ def show_tampered_transcript_rejected(transcript, model_params, position, new_to
         'rejected': not result['accept']
     }
 
-# Step 49 - sample_verifier_committee (not yet solved)
-# TODO: implement
+# Step 49 - sample_verifier_committee
+import random
+
+def sample_verifier_committee(verifier_ids, committee_size, seed):
+    rng = random.Random(seed)
+    return rng.sample(verifier_ids, committee_size)
 
 # Step 50 - collect_verifier_votes (not yet solved)
 # TODO: implement
