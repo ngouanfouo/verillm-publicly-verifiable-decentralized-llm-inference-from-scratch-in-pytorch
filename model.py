@@ -399,8 +399,26 @@ def layer_norm_apply(x, ln_params, eps=1e-5):
     # Apply affine transformation
     return gamma * x_norm + beta
 
-# Step 22 - residual_add_and_norm (not yet solved)
-# TODO: implement
+# Step 22 - residual_add_and_norm
+import numpy as np
+
+def residual_add_and_norm(x, sublayer_output, ln_params, eps=1e-5):
+    """Combines a residual connection with post-layer normalization.
+    
+    Args:
+        x: Input to the sublayer of shape (T, D).
+        sublayer_output: Output from the sublayer of shape (T, D).
+        ln_params: Dictionary containing 'gamma' and 'beta' parameters.
+        eps: Small constant for numerical stability in LayerNorm.
+        
+    Returns:
+        Layer-normalized sum of x and sublayer_output with shape (T, D).
+    """
+    # 1. Add residual connection
+    residual_sum = x + sublayer_output
+    
+    # 2. Apply layer normalization via the upstream primitive
+    return layer_norm_apply(residual_sum, ln_params, eps=eps)
 
 # Step 23 - transformer_block (not yet solved)
 # TODO: implement
