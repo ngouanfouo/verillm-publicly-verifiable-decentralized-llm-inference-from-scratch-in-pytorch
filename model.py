@@ -1130,8 +1130,26 @@ def recompute_step_commitment(reexec_state, prior_kv_cache):
     
     return leaf
 
-# Step 42 - check_commitment_against_proof (not yet solved)
-# TODO: implement
+# Step 42 - check_commitment_against_proof
+def check_commitment_against_proof(recomputed_leaf, leaf_index, proof, root):
+    current_hash = recomputed_leaf
+    idx = leaf_index
+    
+    for sibling in proof:
+        # Extract raw bytes from sibling dictionary regardless of key name ('sibling', 'digest', 'hash', etc.)
+        if isinstance(sibling, dict):
+            sibling_hash = next(iter(sibling.values()))
+        else:
+            sibling_hash = sibling
+        
+        if idx % 2 == 0:
+            current_hash = hash_pair(current_hash, sibling_hash)
+        else:
+            current_hash = hash_pair(sibling_hash, current_hash)
+            
+        idx //= 2
+    
+    return current_hash == root
 
 # Step 43 - check_token_matches_claim (not yet solved)
 # TODO: implement
