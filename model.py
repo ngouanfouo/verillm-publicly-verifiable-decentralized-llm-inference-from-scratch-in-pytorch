@@ -951,8 +951,24 @@ def merkle_inclusion_proof(tree, leaf_index):
 
     return proof
 
-# Step 36 - verify_merkle_inclusion_proof (not yet solved)
-# TODO: implement
+# Step 36 - verify_merkle_inclusion_proof
+def verify_merkle_inclusion_proof(leaf, leaf_index, proof, root):
+    """Walk from leaf to root using sibling digests and return True iff root matches."""
+    current_digest = leaf
+
+    for step in proof:
+        sibling = step['sibling']
+        side = step.get('side')
+        
+        # Determine concatenation order based on side flag
+        if side == 'right' or step.get('is_right') is True:
+            current_digest = hash_pair(current_digest, sibling)
+        elif side == 'left' or step.get('is_right') is False:
+            current_digest = hash_pair(sibling, current_digest)
+        else:
+            raise ValueError(f"Invalid side flag: {side}")
+
+    return current_digest == root
 
 # Step 37 - run_prover (not yet solved)
 # TODO: implement
