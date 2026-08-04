@@ -169,8 +169,18 @@ def softmax_attention_weights(masked_scores):
     
     return weights
 
-# Step 11 - weighted_value_sum (not yet solved)
-# TODO: implement
+# Step 11 - weighted_value_sum
+import numpy as np
+
+def weighted_value_sum(attn_weights, values):
+    # TODO: combine attention weights (Tq, Tk) with values (Tk, d_head) into context (Tq, d_head).
+    
+    # Matrix multiplication: attn_weights @ values
+    # attn_weights shape: (Tq, Tk), values shape: (Tk, d_head)
+    # Result shape: (Tq, d_head)
+    context = attn_weights @ values
+    
+    return context
 
 # Step 12 - project_qkv (not yet solved)
 # TODO: implement
