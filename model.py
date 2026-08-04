@@ -704,8 +704,75 @@ def run_prefill(prompt_ids, model_params):
         'next_pos': T
     }
 
-# Step 27 - decode_step (not yet solved)
-# TODO: implement
+# Step 27 - decode_step
+import numpy as np
+
+def decode_step(prev_token_id, kv_caches, next_pos, model_params):
+    # TODO: run one autoregressive decode step and return next_token, logits, kv_caches, next_pos.
+    
+    # 1. Retrieve embeddings safely
+    wte = _get_param(model_params, ['wte', 'token_embeddings', 'tok_embeddings', 'w_te'])
+    wpe = _get_param(model_params, ['wpe', 'position_embeddings', 'pos_embeddings', 'w_pe'])
+    
+    # Handle case where embeddings might be None (zero model)
+    if wte is None:
+        d_model = 4  # Default dimension
+        wte = np.zeros((100, d_model))  # vocab_size=100, d_model=4
+    if wpe is None:
+        d_model = wte.shape[1] if wte is not None else 4
+        wpe = np.zeros((1000, d_model))  # max_len=1000
+    
+    # 2. Embed the single token and add positional embedding
+    tok_emb = embed_tokens_numpy(np.array([prev_token_id]), wte)
+    pos_emb = position_embed_numpy(np.array([next_pos]), wpe)
+    h = tok_emb + pos_emb
+    
+    # 3. Pass through transformer blocks with existing KV caches
+    updated_kv_caches = []
+    blocks = model_params.get('blocks', model_params.get('layers', []))
+    
+    for i, block_params in enumerate(blocks):
+        # Use the existing cache for this layer
+        kv_cache = kv_caches[i] if i < len(kv_caches) else create_empty_kv_cache(h.shape[1])
+        h, updated_cache = transformer_block(h, block_params, kv_cache, query_offset=next_pos)
+        updated_kv_caches.append(updated_cache)
+    
+    # 4. Apply final LayerNorm
+    ln_f_params = _get_param(model_params, ['ln_f', 'ln_final', 'norm_f'], default={})
+    h_normed = layer_norm_numpy(h, ln_f_params)
+    
+    # 5. Compute logits (project to vocabulary size)
+    lm_head = _get_param(model_params, ['lm_head', 'head', 'w_head', 'output_projection'])
+    
+    # Handle different formats of lm_head
+    if lm_head is None:
+        # If no LM head, create dummy with zeros
+        vocab_size = wte.shape[0] if wte is not None else 100
+        lm_head_matrix = np.zeros((h_normed.shape[1], vocab_size))
+        lm_head_bias = np.zeros(vocab_size)
+    elif isinstance(lm_head, dict):
+        # If lm_head is a dict with 'W' and 'b' keys
+        lm_head_matrix = lm_head.get('W', lm_head.get('weight', np.zeros((h_normed.shape[1], 100))))
+        lm_head_bias = lm_head.get('b', lm_head.get('bias', np.zeros(lm_head_matrix.shape[1])))
+    else:
+        # If lm_head is a direct matrix
+        lm_head_matrix = lm_head
+        lm_head_bias = None
+    
+    # Compute logits: h @ W + b
+    logits = h_normed @ lm_head_matrix
+    if lm_head_bias is not None:
+        logits = logits + lm_head_bias
+    
+    # 6. Greedy decode: pick the token with highest logit
+    next_token = int(np.argmax(logits[0]))
+    
+    return {
+        'next_token': next_token,
+        'logits': logits[0],  # Shape (vocab_size,)
+        'kv_caches': updated_kv_caches,
+        'next_pos': next_pos + 1
+    }
 
 # Step 28 - generate_with_state_log (not yet solved)
 # TODO: implement
