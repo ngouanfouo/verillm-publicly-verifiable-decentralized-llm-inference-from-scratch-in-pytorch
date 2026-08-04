@@ -1307,8 +1307,12 @@ def reward_honest_participants(balances, worker_id, votes, verdict, reward_worke
             
     return new_balances
 
-# Step 53 - slash_worker (not yet solved)
-# TODO: implement
+# Step 53 - slash_worker
+def slash_worker(balances, worker_id, slash_amount):
+    new_balances = balances.copy()
+    current_balance = new_balances.get(worker_id, 0.0)
+    new_balances[worker_id] = current_balance - slash_amount
+    return new_balances
 
 # Step 54 - assign_dual_role (not yet solved)
 # TODO: implement
