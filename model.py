@@ -309,8 +309,30 @@ def single_head_causal_self_attention(x, attn_params, kv_cache, query_offset=0):
     
     return out, updated_cache
 
-# Step 17 - ffn_first_layer_gelu (not yet solved)
-# TODO: implement
+# Step 17 - ffn_first_layer_gelu
+import numpy as np
+
+def gelu(x):
+    """Gaussian Error Linear Unit (GELU) activation function."""
+    return 0.5 * x * (1.0 + np.tanh(np.sqrt(2.0 / np.pi) * (x + 0.044715 * (x ** 3))))
+
+def ffn_first_layer_gelu(x, ffn_params):
+    """Applies the first linear layer of the FFN and a GELU activation.
+    
+    Args:
+        x: Input array of shape (T, d_model).
+        ffn_params: Dictionary containing 'W1' (d_model, d_ff) and optional 'b1' (d_ff,).
+        
+    Returns:
+        Output array of shape (T, d_ff) after linear projection and GELU activation.
+    """
+    # 1. Project x using weight W1 and optional bias b1
+    W1 = ffn_params['W1']
+    b1 = ffn_params.get('b1', None)
+    h1 = linear_projection(x, W1, b1)
+    
+    # 2. Apply GELU activation elementwise
+    return gelu(h1)
 
 # Step 18 - ffn_second_layer (not yet solved)
 # TODO: implement
