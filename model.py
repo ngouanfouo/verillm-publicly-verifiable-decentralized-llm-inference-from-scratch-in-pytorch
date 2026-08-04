@@ -1019,8 +1019,31 @@ def assemble_public_transcript(prover_result, prompt_ids):
     
     return transcript
 
-# Step 39 - sample_audit_positions (not yet solved)
-# TODO: implement
+# Step 39 - sample_audit_positions
+import random
+
+def sample_audit_positions(seed, num_steps, k):
+    # TODO: deterministically sample k distinct sorted indices in [0, num_steps) from the seed.
+    
+    # Handle edge cases
+    if k == 0:
+        return []
+    
+    if k >= num_steps:
+        return list(range(num_steps))
+    
+    # Save current random state and set seed
+    saved_state = random.getstate()
+    random.seed(seed)
+    
+    # Sample k distinct indices
+    indices = list(range(num_steps))
+    sampled = random.sample(indices, k)
+    
+    # Restore random state
+    random.setstate(saved_state)
+    
+    return sorted(sampled)
 
 # Step 40 - reexecute_audited_step (not yet solved)
 # TODO: implement
