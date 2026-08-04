@@ -1327,8 +1327,124 @@ def assign_dual_role(node_ids, worker_id, committee_size, seed):
         'committee': committee
     }
 
-# Step 55 - run_honest_round (not yet solved)
-# TODO: implement
+# Step 55 - run_honest_round
+import numpy as np
+import copy
+import random
+
+def run_honest_round(model_params, prompt_ids, num_steps, verifier_ids, worker_id, committee_size, k, seed, balances, reward_worker, reward_verifier):
+    """Run one full end-to-end execution of the verifiable inference protocol for an honest worker."""
+    
+    # 1. Generate an honest execution transcript
+    transcript = generate_honest_transcript(model_params, prompt_ids, num_steps)
+    
+    # 2. Sample the verifier committee deterministically using the seed
+    committee = sample_verifier_committee(verifier_ids, committee_size, seed)
+    
+    # 3. Collect independent spot-check votes using seed as base_seed
+    votes = collect_verifier_votes(committee, transcript, model_params, k, base_seed=seed)
+    
+    # 4. Aggregate votes via majority rule
+    agg_res = aggregate_votes_majority(votes)
+    verdict = agg_res['verdict']
+    
+    # 5. Reward honest participants based on the outcome
+    updated_balances = reward_honest_participants(
+        balances, worker_id, votes, verdict, reward_worker, reward_verifier
+    )
+    
+    return {
+        'transcript': transcript,
+        'votes': votes,
+        'verdict': verdict,
+        'balances': updated_balances
+    }
+
+
+def generate_honest_transcript(model_params, prompt_ids, num_steps):
+    """Generate an honest execution transcript by running the model."""
+    # Generate tokens and step states
+    gen_result = generate_with_state_log(prompt_ids, model_params, num_steps)
+    
+    # Create leaves from step states
+    leaves = [commit_decode_step(state) for state in gen_result['step_states']]
+    
+    # Build the Merkle tree and root
+    if leaves:
+        tree = build_merkle_tree(leaves)
+        root = merkle_root(tree)
+    else:
+        tree = []
+        root = b''
+    
+    # Assemble the full transcript
+    transcript = {
+        'prompt_ids': list(prompt_ids),
+        'output_tokens': list(gen_result['generated_tokens']),
+        'leaves': leaves,
+        'tree': tree,
+        'root': root,
+        'step_states': gen_result['step_states']
+    }
+    
+    return transcript
+
+
+def sample_verifier_committee(verifier_ids, committee_size, seed):
+    """Sample a committee of verifiers deterministically from the pool."""
+    if not verifier_ids:
+        return []
+    
+    # Sort for deterministic order
+    sorted_ids = sorted(verifier_ids)
+    
+    if committee_size >= len(sorted_ids):
+        return sorted_ids
+    
+    # Use the seed for deterministic sampling
+    rng = random.Random(seed)
+    sampled = rng.sample(sorted_ids, committee_size)
+    return sorted(sampled)
+
+
+def aggregate_votes_majority(votes):
+    """Aggregate votes using simple majority rule."""
+    if not votes:
+        return {'verdict': True, 'summary': {'for': 0, 'against': 0, 'total': 0}}
+    
+    for_count = sum(1 for v in votes if v.get('vote', False) is True)
+    against_count = len(votes) - for_count
+    
+    # Tie goes to True (optimistic for honest case)
+    verdict = for_count >= against_count
+    
+    return {
+        'verdict': verdict,
+        'summary': {
+            'for': for_count,
+            'against': against_count,
+            'total': len(votes)
+        }
+    }
+
+
+def reward_honest_participants(balances, worker_id, votes, verdict, reward_worker, reward_verifier):
+    """Reward the worker and verifiers based on the outcome."""
+    # Create a copy of balances to avoid mutation
+    new_balances = copy.deepcopy(balances)
+    
+    # Only reward if the verdict is True (honest execution accepted)
+    if verdict:
+        # Reward the worker
+        new_balances[worker_id] = new_balances.get(worker_id, 0.0) + reward_worker
+        
+        # Reward verifiers whose vote matches the verdict
+        for vote in votes:
+            verifier_id = vote.get('verifier_id')
+            if verifier_id is not None and vote.get('vote', False) == verdict:
+                new_balances[verifier_id] = new_balances.get(verifier_id, 0.0) + reward_verifier
+    
+    return new_balances
 
 # Step 56 - run_malicious_round (not yet solved)
 # TODO: implement
