@@ -71,8 +71,23 @@ def embed_tokens(token_ids, token_embedding):
     
     return embedded
 
-# Step 5 - add_positional_embeddings (not yet solved)
-# TODO: implement
+# Step 5 - add_positional_embeddings
+import torch
+
+def add_positional_embeddings(token_embeds, pos_embedding, start_pos=0):
+    """Add the positional embedding slice [start_pos : start_pos + T] to token_embeds."""
+    # TODO: add the appropriate slice of pos_embedding to token_embeds and return the sum.
+    
+    # Get the sequence length from token_embeds
+    T = token_embeds.shape[0]
+    
+    # Extract the positional embeddings for positions start_pos to start_pos + T - 1
+    pos_slice = pos_embedding[start_pos : start_pos + T]
+    
+    # Add the positional embeddings to the token embeddings element-wise
+    result = token_embeds + pos_slice
+    
+    return result
 
 # Step 6 - linear_projection (not yet solved)
 # TODO: implement
