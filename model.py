@@ -1314,8 +1314,18 @@ def slash_worker(balances, worker_id, slash_amount):
     new_balances[worker_id] = current_balance - slash_amount
     return new_balances
 
-# Step 54 - assign_dual_role (not yet solved)
-# TODO: implement
+# Step 54 - assign_dual_role
+def assign_dual_role(node_ids, worker_id, committee_size, seed):
+    committee = sample_verifier_committee(node_ids, committee_size, seed)
+    
+    if worker_id not in committee:
+        # If worker_id was not selected, replace the last member to maintain size and uniqueness
+        committee[-1] = worker_id
+        
+    return {
+        'worker_id': worker_id,
+        'committee': committee
+    }
 
 # Step 55 - run_honest_round (not yet solved)
 # TODO: implement
