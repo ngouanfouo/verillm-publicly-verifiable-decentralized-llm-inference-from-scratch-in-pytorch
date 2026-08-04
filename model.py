@@ -920,8 +920,36 @@ def merkle_root(tree):
     """Return the Merkle root digest from a built tree (list of levels)."""
     return tree[-1][0]
 
-# Step 35 - merkle_inclusion_proof (not yet solved)
-# TODO: implement
+# Step 35 - merkle_inclusion_proof
+def merkle_inclusion_proof(tree, leaf_index):
+    """Walk from the leaf level upward, recording each sibling and its side."""
+    proof = []
+    idx = leaf_index
+
+    # Walk each level up to (but not including) the root level
+    for level_idx in range(len(tree) - 1):
+        level = tree[level_idx]
+        
+        # Check if current index is even (left node) or odd (right node)
+        if idx % 2 == 0:
+            # Current node is on the left; sibling is on the right
+            # Duplicate the last node if the level length is odd
+            sibling_idx = idx + 1 if idx + 1 < len(level) else idx
+            is_right = True
+        else:
+            # Current node is on the right; sibling is on the left
+            sibling_idx = idx - 1
+            is_right = False
+
+        proof.append({
+            'sibling': level[sibling_idx],
+            'is_right': is_right
+        })
+
+        # Move to parent index for the next level up
+        idx //= 2
+
+    return proof
 
 # Step 36 - verify_merkle_inclusion_proof (not yet solved)
 # TODO: implement
