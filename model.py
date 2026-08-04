@@ -1045,8 +1045,67 @@ def sample_audit_positions(seed, num_steps, k):
     
     return sorted(sampled)
 
-# Step 40 - reexecute_audited_step (not yet solved)
-# TODO: implement
+# Step 40 - reexecute_audited_step
+import numpy as np
+
+def reexecute_audited_step(model_params, prior_kv_cache, prior_token):
+    # TODO: re-execute a single audited decode step from the committed prior KV cache and prior token.
+    
+    # Determine the position from the cached key length
+    # If cache is empty, the position is 0
+    if prior_kv_cache and len(prior_kv_cache) > 0 and prior_kv_cache[0]['k'] is not None:
+        # Check if the cache has keys (not empty)
+        if prior_kv_cache[0]['k'].shape[0] > 0:
+            next_pos = prior_kv_cache[0]['k'].shape[0]
+        else:
+            next_pos = 0
+    else:
+        next_pos = 0
+    
+    # Run one decode step using the helper
+    result = decode_step(prior_token, prior_kv_cache, next_pos, model_params)
+    
+    # Extract the required fields
+    next_token = int(result['next_token'])  # Convert to plain Python int
+    logits = result['logits']
+    kv_cache_after = result['kv_caches']
+    
+    # Re-run the forward pass up to the LM head to get hidden states
+    # Get embeddings
+    wte = _get_param(model_params, ['wte', 'token_embeddings', 'tok_embeddings', 'w_te'])
+    wpe = _get_param(model_params, ['wpe', 'position_embeddings', 'pos_embeddings', 'w_pe'])
+    
+    # Handle case where embeddings might be None (zero model)
+    if wte is None:
+        d_model = 4  # Default dimension
+        wte = np.zeros((100, d_model))
+    if wpe is None:
+        d_model = wte.shape[1] if wte is not None else 4
+        wpe = np.zeros((1000, d_model))
+    
+    # Embed the single token and add positional embedding
+    tok_emb = embed_tokens_numpy(np.array([prior_token]), wte)
+    pos_emb = position_embed_numpy(np.array([next_pos]), wpe)
+    h = tok_emb + pos_emb
+    
+    # Pass through transformer blocks using the prior cache
+    blocks = model_params.get('blocks', model_params.get('layers', []))
+    
+    for i, block_params in enumerate(blocks):
+        # Use the prior cache for this layer (before the step)
+        kv_cache = prior_kv_cache[i] if i < len(prior_kv_cache) else create_empty_kv_cache(h.shape[1])
+        h, _ = transformer_block(h, block_params, kv_cache, query_offset=next_pos)
+    
+    # Apply final LayerNorm
+    ln_f_params = _get_param(model_params, ['ln_f', 'ln_final', 'norm_f'], default={})
+    hidden = layer_norm_numpy(h, ln_f_params)
+    
+    return {
+        'hidden': hidden,
+        'logits': logits,
+        'token': next_token,
+        'kv_cache_after': kv_cache_after
+    }
 
 # Step 41 - recompute_step_commitment (not yet solved)
 # TODO: implement
