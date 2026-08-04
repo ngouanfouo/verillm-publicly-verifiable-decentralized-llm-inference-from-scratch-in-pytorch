@@ -774,8 +774,58 @@ def decode_step(prev_token_id, kv_caches, next_pos, model_params):
         'next_pos': next_pos + 1
     }
 
-# Step 28 - generate_with_state_log (not yet solved)
-# TODO: implement
+# Step 28 - generate_with_state_log
+def generate_with_state_log(prompt_ids, model_params, num_new_tokens):
+    """Run prefill, then decode num_new_tokens tokens, logging each step's state."""
+    if num_new_tokens == 0:
+        return {'generated_tokens': [], 'step_states': []}
+
+    # 1. Run prefill to get initial hidden states and KV caches
+    prefill_out = run_prefill(prompt_ids, model_params)
+    kv_caches = prefill_out['kv_caches']
+    next_pos = prefill_out['next_pos']
+    hidden = prefill_out['hidden']
+
+    # 2. Get the first token generated from the prefill phase
+    logits = lm_head_logits(hidden[-1], model_params.get('lm_head'))
+    first_token = greedy_next_token(logits)
+
+    generated_tokens = [first_token]
+    step_states = [{
+        'next_token': first_token,
+        'logits': logits,
+        'kv_caches': kv_caches,
+        'next_pos': next_pos
+    }]
+
+    # Advance position after prefill step
+    next_pos += 1
+    prev_token_id = first_token
+
+    # 3. Autoregressively decode the remaining (num_new_tokens - 1) tokens
+    for _ in range(num_new_tokens - 1):
+        current_pos = next_pos
+        step_out = decode_step(prev_token_id, kv_caches, next_pos, model_params)
+
+        next_token = step_out['next_token']
+        kv_caches = step_out['kv_caches']
+        next_pos = step_out['next_pos']
+        logits = step_out['logits']
+
+        generated_tokens.append(next_token)
+        step_states.append({
+            'next_token': next_token,
+            'logits': logits,
+            'kv_caches': kv_caches,
+            'next_pos': current_pos
+        })
+
+        prev_token_id = next_token
+
+    return {
+        'generated_tokens': generated_tokens,
+        'step_states': step_states
+    }
 
 # Step 29 - hash_tensor (not yet solved)
 # TODO: implement
