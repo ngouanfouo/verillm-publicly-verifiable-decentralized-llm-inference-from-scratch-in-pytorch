@@ -570,8 +570,25 @@ def transformer_block(x, block_params, kv_cache, query_offset=0):
     
     return out, updated_kv_cache
 
-# Step 24 - lm_head_logits (not yet solved)
-# TODO: implement
+# Step 24 - lm_head_logits
+import numpy as np
+
+def lm_head_logits(hidden, lm_head_params):
+    """Projects final hidden states to vocabulary logits using the LM head linear layer.
+    
+    Args:
+        hidden: Hidden states tensor of shape (T, d_model).
+        lm_head_params: Parameter dict containing key 'W' (shape [d_model, vocab_size])
+                        and optional key 'b' (shape [vocab_size]).
+                        
+    Returns:
+        Logits array of shape (T, vocab_size).
+    """
+    W = lm_head_params['W']
+    b = lm_head_params.get('b', None)
+    
+    # Reuse primitive affine projection: logits = hidden @ W + b
+    return linear_projection(hidden, W, b)
 
 # Step 25 - greedy_next_token (not yet solved)
 # TODO: implement
