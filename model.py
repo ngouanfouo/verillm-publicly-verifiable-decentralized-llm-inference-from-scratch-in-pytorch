@@ -1194,8 +1194,15 @@ def run_spot_check_verification(transcript, model_params, seed, k):
         'per_audit': per_audit
     }
 
-# Step 45 - tamper_transcript_flip_token (not yet solved)
-# TODO: implement
+# Step 45 - tamper_transcript_flip_token
+import copy
+
+def tamper_transcript_flip_token(transcript, position, new_token):
+    # Shallow copy the outer dict and deepcopy output_tokens to avoid mutating the original
+    tampered = dict(transcript)
+    tampered['output_tokens'] = list(transcript['output_tokens'])
+    tampered['output_tokens'][position] = new_token
+    return tampered
 
 # Step 46 - detection_probability (not yet solved)
 # TODO: implement
