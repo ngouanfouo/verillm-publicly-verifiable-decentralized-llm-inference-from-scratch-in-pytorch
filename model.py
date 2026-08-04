@@ -105,8 +105,11 @@ def linear_projection(x, weight, bias=None):
     
     return result
 
-# Step 7 - compute_attention_scores (not yet solved)
-# TODO: implement
+# Step 7 - compute_attention_scores
+def compute_attention_scores(queries, keys):
+    # TODO: return the (Tq, Tk) matrix of raw dot-product scores between queries and keys.
+    scores=queries @ keys.T
+    return scores
 
 # Step 8 - scale_attention_scores (not yet solved)
 # TODO: implement
