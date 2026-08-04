@@ -111,8 +111,15 @@ def compute_attention_scores(queries, keys):
     scores=queries @ keys.T
     return scores
 
-# Step 8 - scale_attention_scores (not yet solved)
-# TODO: implement
+# Step 8 - scale_attention_scores
+def scale_attention_scores(scores, d_head):
+    # TODO: scale raw attention scores by 1/sqrt(d_head) for numerical stability.
+    import numpy as np
+
+    scale_factor=1.0/np.sqrt(d_head)
+
+    scaled_scores=scores*scale_factor
+    return scaled_scores
 
 # Step 9 - apply_causal_mask (not yet solved)
 # TODO: implement
