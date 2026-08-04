@@ -50,8 +50,26 @@ def decode_ids(ids, vocab):
     
     return result
 
-# Step 4 - embed_tokens (not yet solved)
-# TODO: implement
+# Step 4 - embed_tokens
+import torch
+import torch.nn.functional as F
+
+def embed_tokens(token_ids, token_embedding):
+    """Look up token embedding vectors for a sequence of token ids.
+
+    Args:
+        token_ids: LongTensor of shape (T,).
+        token_embedding: FloatTensor of shape (vocab_size, d_model).
+
+    Returns:
+        FloatTensor of shape (T, d_model).
+    """
+    # TODO: select the embedding row for each token id and return (T, d_model)
+    
+    # Using functional embedding lookup
+    embedded = F.embedding(token_ids, token_embedding)
+    
+    return embedded
 
 # Step 5 - add_positional_embeddings (not yet solved)
 # TODO: implement
